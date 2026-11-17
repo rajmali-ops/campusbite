@@ -92,16 +92,6 @@
       "description": "2 fluffy bhaturas with rich spiced chickpea curry"
     },
     {
-      "id": "m7",
-      "name": "Adrak Masala Chai",
-      "category": "Beverages",
-      "price": 12,
-      "stockQuantity": 40,
-      "isAvailable": true,
-      "prepTimeMins": 2,
-      "description": "Fresh brewed cardamom & ginger spiced hot tea"
-    },
-    {
       "id": "m8",
       "name": "Thick Cold Coffee",
       "category": "Beverages",
