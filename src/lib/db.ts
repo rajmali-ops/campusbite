@@ -418,3 +418,109 @@ export async function updateStaffPin(oldPin: string, newPin: string): Promise<{ 
   await supabase.from('app_settings').upsert({ key: 'staff_pin', value: newPin.trim() });
   return { success: true };
 }
+
+// =========================================================================
+// DAILY TOKEN RESET & INVENTORY MANAGEMENT
+// =========================================================================
+export async function resetDailyTokens(): Promise<{ success: boolean; message: string }> {
+  const supabase = getSupabase();
+  if (!supabase) return localStore.resetDailyTokens();
+
+  // Reset next token number in app_settings to 1
+  await supabase.from('app_settings').upsert({ key: 'next_token_number', value: '1' });
+
+  // Mark all active orders as collected/archived for the fresh day
+  await supabase.from('orders').update({ status: 'collected' }).neq('status', 'collected');
+
+  return { success: true, message: 'Daily tokens reset to #1. Board cleared for fresh day.' };
+}
+
+export async function createMenuItem(item: Omit<MenuItem, 'id'>): Promise<MenuItem> {
+  const supabase = getSupabase();
+  if (!supabase) return localStore.createMenuItem(item);
+
+  const itemId = `m-${Date.now()}`;
+  const rowData = {
+    id: itemId,
+    name: item.name.trim(),
+    category: item.category,
+    price: item.price,
+    stock_quantity: item.stockQuantity,
+    is_available: item.stockQuantity > 0,
+    prep_time_mins: item.prepTimeMins || 5,
+    description: item.description || '',
+  };
+
+  const { data, error } = await supabase.from('menu_items').insert([rowData]).select().single();
+  if (error || !data) {
+    console.error('Supabase createMenuItem error, falling back to local:', error);
+    return localStore.createMenuItem(item);
+  }
+
+  return {
+    id: data.id,
+    name: data.name,
+    category: data.category,
+    price: Number(data.price),
+    stockQuantity: data.stock_quantity,
+    isAvailable: data.is_available,
+    prepTimeMins: data.prep_time_mins,
+    description: data.description,
+  };
+}
+
+export async function updateMenuItemDetails(
+  itemId: string,
+  updates: Partial<MenuItem>
+): Promise<MenuItem | null> {
+  const supabase = getSupabase();
+  if (!supabase) return localStore.updateMenuItemDetails(itemId, updates);
+
+  const updatePayload: any = {};
+  if (updates.name !== undefined) updatePayload.name = updates.name.trim();
+  if (updates.category !== undefined) updatePayload.category = updates.category;
+  if (updates.price !== undefined) updatePayload.price = Number(updates.price);
+  if (updates.stockQuantity !== undefined) {
+    updatePayload.stock_quantity = Number(updates.stockQuantity);
+    updatePayload.is_available = Number(updates.stockQuantity) > 0;
+  }
+  if (updates.prepTimeMins !== undefined) updatePayload.prep_time_mins = Number(updates.prepTimeMins);
+  if (updates.description !== undefined) updatePayload.description = updates.description;
+  if (updates.isAvailable !== undefined) updatePayload.is_available = updates.isAvailable;
+
+  const { data, error } = await supabase
+    .from('menu_items')
+    .update(updatePayload)
+    .eq('id', itemId)
+    .select()
+    .single();
+
+  if (error || !data) {
+    console.error('Supabase updateMenuItemDetails error:', error);
+    return localStore.updateMenuItemDetails(itemId, updates);
+  }
+
+  return {
+    id: data.id,
+    name: data.name,
+    category: data.category,
+    price: Number(data.price),
+    stockQuantity: data.stock_quantity,
+    isAvailable: data.is_available,
+    prepTimeMins: data.prep_time_mins,
+    description: data.description,
+  };
+}
+
+export async function deleteMenuItemById(itemId: string): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return localStore.deleteMenuItemById(itemId);
+
+  const { error } = await supabase.from('menu_items').delete().eq('id', itemId);
+  if (error) {
+    console.error('Supabase deleteMenuItemById error:', error);
+    return localStore.deleteMenuItemById(itemId);
+  }
+
+  return true;
+}

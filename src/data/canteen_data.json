@@ -66,7 +66,7 @@
       "name": "Paneer Tikka Frankie",
       "category": "Quick Meals",
       "price": 65,
-      "stockQuantity": 8,
+      "stockQuantity": 7,
       "isAvailable": true,
       "prepTimeMins": 8,
       "description": "Tandoori paneer roll wrapped with onions & mint mayo"
@@ -113,6 +113,27 @@
     }
   ],
   "orders": [
+    {
+      "id": "ord-1794903870910",
+      "tokenNumber": 23,
+      "userId": "u1",
+      "uniqueCode": "CB-1042",
+      "userName": "Rahul Sharma",
+      "userPhone": "9876543210",
+      "items": [
+        {
+          "id": "m4",
+          "name": "Paneer Tikka Frankie",
+          "price": 65,
+          "quantity": 1
+        }
+      ],
+      "totalAmount": 65,
+      "pickupPin": "2680",
+      "status": "received",
+      "estimatedReadyAt": "~8 mins",
+      "createdAt": "2026-11-17T08:24:30.910Z"
+    },
     {
       "id": "ord-1794902177830",
       "tokenNumber": 22,
@@ -183,6 +204,6 @@
       "createdAt": "2026-11-17T07:45:44.210Z"
     }
   ],
-  "nextTokenNumber": 23,
+  "nextTokenNumber": 24,
   "staffPin": "1234"
 }

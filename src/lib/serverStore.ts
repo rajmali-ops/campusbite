@@ -423,3 +423,58 @@ export function updateStaffPin(oldPin: string, newPin: string): { success: boole
   writeData(data);
   return { success: true };
 }
+
+export function resetDailyTokens(): { success: boolean; message: string } {
+  const data = readData();
+  data.nextTokenNumber = 1;
+  // Mark any active orders as collected/archived for the fresh day
+  data.orders = data.orders.map((o) => {
+    if (o.status !== 'collected') {
+      return { ...o, status: 'collected' };
+    }
+    return o;
+  });
+  writeData(data);
+  return { success: true, message: 'Daily tokens reset to #1. Board cleared for fresh day.' };
+}
+
+export function createMenuItem(item: Omit<MenuItem, 'id'>): MenuItem {
+  const data = readData();
+  const newItem: MenuItem = {
+    ...item,
+    id: `m-${Date.now()}`,
+    isAvailable: item.stockQuantity > 0,
+  };
+  data.menuItems.push(newItem);
+  writeData(data);
+  return newItem;
+}
+
+export function updateMenuItemDetails(
+  itemId: string,
+  updates: Partial<MenuItem>
+): MenuItem | null {
+  const data = readData();
+  const itemIndex = data.menuItems.findIndex((m) => m.id === itemId);
+  if (itemIndex === -1) return null;
+
+  const existing = data.menuItems[itemIndex];
+  const updatedItem: MenuItem = {
+    ...existing,
+    ...updates,
+    isAvailable: (updates.stockQuantity !== undefined ? updates.stockQuantity : existing.stockQuantity) > 0,
+  };
+
+  data.menuItems[itemIndex] = updatedItem;
+  writeData(data);
+  return updatedItem;
+}
+
+export function deleteMenuItemById(itemId: string): boolean {
+  const data = readData();
+  const initialLength = data.menuItems.length;
+  data.menuItems = data.menuItems.filter((m) => m.id !== itemId);
+  writeData(data);
+  return data.menuItems.length < initialLength;
+}
+

@@ -25,7 +25,12 @@ import {
   Unlock,
   KeyRound,
   Delete,
-  Settings
+  Settings,
+  RotateCcw,
+  Pencil,
+  PlusCircle,
+  X,
+  AlertCircle
 } from 'lucide-react';
 import { User, MenuItem, Order, OrderStatus } from '@/types';
 import { syncBus } from '@/lib/syncChannel';
@@ -43,6 +48,32 @@ export default function StaffDashboardPage() {
   const [currentPinInput, setCurrentPinInput] = useState<string>('');
   const [newPinInput, setNewPinInput] = useState<string>('');
   const [pinChangeMsg, setPinChangeMsg] = useState<{ text: string; isError: boolean } | null>(null);
+
+  // Daily Token Reset State
+  const [showResetModal, setShowResetModal] = useState<boolean>(false);
+  const [isResettingTokens, setIsResettingTokens] = useState<boolean>(false);
+  const [resetSuccessMsg, setResetSuccessMsg] = useState<string>('');
+
+  // Add Item State
+  const [showAddItemModal, setShowAddItemModal] = useState<boolean>(false);
+  const [newItemName, setNewItemName] = useState<string>('');
+  const [newItemCategory, setNewItemCategory] = useState<'Snacks' | 'Quick Meals' | 'Beverages' | 'Combos'>('Snacks');
+  const [newItemPrice, setNewItemPrice] = useState<string>('');
+  const [newItemStock, setNewItemStock] = useState<string>('');
+  const [newItemPrepTime, setNewItemPrepTime] = useState<string>('5');
+  const [newItemDesc, setNewItemDesc] = useState<string>('');
+  const [addItemError, setAddItemError] = useState<string>('');
+
+  // Edit / Modify Item State
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [editItemName, setEditItemName] = useState<string>('');
+  const [editItemCategory, setEditItemCategory] = useState<'Snacks' | 'Quick Meals' | 'Beverages' | 'Combos'>('Snacks');
+  const [editItemPrice, setEditItemPrice] = useState<string>('');
+  const [editItemStock, setEditItemStock] = useState<string>('');
+  const [editItemPrepTime, setEditItemPrepTime] = useState<string>('5');
+  const [editItemDesc, setEditItemDesc] = useState<string>('');
+  const [editItemAvailable, setEditItemAvailable] = useState<boolean>(true);
+  const [editItemError, setEditItemError] = useState<string>('');
 
   // Tab State
   const [activeTab, setActiveTab] = useState<'pos' | 'kitchen' | 'inventory'>('pos');
@@ -112,7 +143,6 @@ export default function StaffDashboardPage() {
       const updated = staffPinInput + num;
       setStaffPinInput(updated);
       setAuthError('');
-      // Auto-submit on 4 digits if desired
       if (updated.length === 4) {
         handlePinSubmit(updated);
       }
@@ -368,7 +398,7 @@ export default function StaffDashboardPage() {
     }
   };
 
-  // Restock Item
+  // Restock Item Quick
   const handleRestock = async (itemId: string, addQty: number) => {
     try {
       const res = await fetch('/api/menu/restock', {
@@ -386,13 +416,155 @@ export default function StaffDashboardPage() {
     }
   };
 
+  // ==============================================================
+  // DAILY TOKEN RESET HANDLER
+  // ==============================================================
+  const handleResetDailyTokens = async () => {
+    setIsResettingTokens(true);
+    try {
+      const res = await fetch('/api/orders/reset', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setResetSuccessMsg('Daily tokens reset to #1. Board cleared for fresh day!');
+        fetchOrders();
+        fetchMenu();
+        syncBus.publish('ORDER_STATUS_CHANGED');
+        setTimeout(() => {
+          setShowResetModal(false);
+          setResetSuccessMsg('');
+        }, 1500);
+      } else {
+        alert(data.error || 'Failed to reset tokens');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Network error');
+    } finally {
+      setIsResettingTokens(false);
+    }
+  };
+
+  // ==============================================================
+  // ADD NEW MENU ITEM HANDLER
+  // ==============================================================
+  const handleCreateMenuItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddItemError('');
+
+    if (!newItemName.trim() || !newItemPrice || !newItemStock) {
+      setAddItemError('Please fill in Name, Price, and Initial Stock.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/menu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newItemName,
+          category: newItemCategory,
+          price: Number(newItemPrice),
+          stockQuantity: Number(newItemStock),
+          prepTimeMins: Number(newItemPrepTime) || 5,
+          description: newItemDesc,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        fetchMenu();
+        syncBus.publish('INVENTORY_UPDATED', data.item);
+        setShowAddItemModal(false);
+        // Reset form
+        setNewItemName('');
+        setNewItemPrice('');
+        setNewItemStock('');
+        setNewItemDesc('');
+        setNewItemPrepTime('5');
+      } else {
+        setAddItemError(data.error || 'Failed to create menu item');
+      }
+    } catch (err: any) {
+      setAddItemError(err.message || 'Network error');
+    }
+  };
+
+  // ==============================================================
+  // EDIT / MODIFY MENU ITEM HANDLER
+  // ==============================================================
+  const openEditModal = (item: MenuItem) => {
+    setEditingItem(item);
+    setEditItemName(item.name);
+    setEditItemCategory(item.category);
+    setEditItemPrice(item.price.toString());
+    setEditItemStock(item.stockQuantity.toString());
+    setEditItemPrepTime(item.prepTimeMins.toString());
+    setEditItemDesc(item.description || '');
+    setEditItemAvailable(item.isAvailable);
+    setEditItemError('');
+  };
+
+  const handleUpdateMenuItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem) return;
+    setEditItemError('');
+
+    try {
+      const res = await fetch(`/api/menu/${editingItem.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editItemName,
+          category: editItemCategory,
+          price: Number(editItemPrice),
+          stockQuantity: Number(editItemStock),
+          prepTimeMins: Number(editItemPrepTime) || 5,
+          description: editItemDesc,
+          isAvailable: editItemAvailable,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        fetchMenu();
+        syncBus.publish('INVENTORY_UPDATED', data.item);
+        setEditingItem(null);
+      } else {
+        setEditItemError(data.error || 'Failed to update item');
+      }
+    } catch (err: any) {
+      setEditItemError(err.message || 'Network error');
+    }
+  };
+
+  // ==============================================================
+  // DELETE MENU ITEM HANDLER
+  // ==============================================================
+  const handleDeleteMenuItem = async (itemId: string, itemName: string) => {
+    if (!confirm(`Are you sure you want to permanently delete "${itemName}" from the canteen menu?`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/menu/${itemId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        fetchMenu();
+        syncBus.publish('INVENTORY_UPDATED');
+      } else {
+        alert(data.error || 'Failed to delete item');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Network error');
+    }
+  };
+
   // Launch TV display in a separate window (for HDMI monitor)
   const openHdmiTvDisplay = () => {
     window.open('/tv', 'CampusBiteTVDisplay', 'width=1920,height=1080,menubar=no,toolbar=no,location=no');
   };
 
   // Filter menu for POS
-  const posCategories = ['All', 'Snacks', 'Quick Meals', 'Beverages'];
+  const posCategories = ['All', 'Snacks', 'Quick Meals', 'Beverages', 'Combos'];
   const filteredPosMenu = menuItems.filter((i) =>
     selectedPosCategory === 'All' ? true : i.category === selectedPosCategory
   );
@@ -432,7 +604,6 @@ export default function StaffDashboardPage() {
               })}
             </div>
 
-            {/* Hidden / Direct keyboard input */}
             <input
               type="password"
               maxLength={8}
@@ -459,7 +630,7 @@ export default function StaffDashboardPage() {
             </div>
           )}
 
-          {/* Touch Numpad for Tablets & POS Terminals */}
+          {/* Touch Numpad */}
           <div className="grid grid-cols-3 gap-2.5 pt-1">
             {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
               <button
@@ -539,8 +710,19 @@ export default function StaffDashboardPage() {
           </div>
         </div>
 
-        {/* HDMI Screen Launch Button & Security Controls */}
+        {/* Action Buttons: Reset Tokens, TV Display, Lock */}
         <div className="flex items-center gap-2.5">
+          {/* Daily Token Reset Button */}
+          <button
+            onClick={() => setShowResetModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold transition"
+            title="Reset Daily Tokens to #1 for a fresh day"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Reset Day (#1)</span>
+          </button>
+
+          {/* HDMI TV Screen Pop-out */}
           <button
             onClick={openHdmiTvDisplay}
             className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/20 transition cursor-pointer"
@@ -610,7 +792,7 @@ export default function StaffDashboardPage() {
           }`}
         >
           <PackagePlus className="w-4 h-4" />
-          3. Inventory & Settings
+          3. Inventory & Menu Manager
         </button>
       </div>
 
@@ -1076,27 +1258,55 @@ export default function StaffDashboardPage() {
         )}
 
         {/* ============================================================== */}
-        {/* TAB 3: INVENTORY RESTOCK & SETTINGS                            */}
+        {/* TAB 3: INVENTORY RESTOCK & MENU MANAGEMENT                     */}
         {/* ============================================================== */}
         {activeTab === 'inventory' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            {/* Top Toolbar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="text-base font-bold text-white">Live Inventory & Settings</h3>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  Inventory & Menu Management
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-mono">
+                    {menuItems.length} Items
+                  </span>
+                </h3>
                 <p className="text-xs text-neutral-400">
-                  Add batch stock when cooks prepare food, or configure Staff Terminal settings.
+                  Add new dishes, modify prices & stock, or delete items. Updates sync live across all screens.
                 </p>
               </div>
 
-              <button
-                onClick={() => setShowPinChangeModal(true)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-semibold border border-neutral-700 transition"
-              >
-                <KeyRound className="w-3.5 h-3.5 text-amber-400" />
-                Change Master PIN
-              </button>
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Add New Item Button */}
+                <button
+                  onClick={() => setShowAddItemModal(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 text-xs font-bold transition shadow-md shadow-emerald-500/20"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  + Add Food Item
+                </button>
+
+                {/* Change PIN Button */}
+                <button
+                  onClick={() => setShowPinChangeModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-semibold border border-neutral-700 transition"
+                >
+                  <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                  Change Master PIN
+                </button>
+
+                {/* Reset Daily Tokens Button */}
+                <button
+                  onClick={() => setShowResetModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold transition"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Reset Day (#1)
+                </button>
+              </div>
             </div>
 
+            {/* Menu Items Table */}
             <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl">
               <table className="w-full text-left text-xs">
                 <thead className="bg-neutral-950/80 text-neutral-400 font-semibold border-b border-neutral-800">
@@ -1104,9 +1314,11 @@ export default function StaffDashboardPage() {
                     <th className="py-3 px-4">Item Name</th>
                     <th className="py-3 px-4">Category</th>
                     <th className="py-3 px-4">Price</th>
-                    <th className="py-3 px-4">Remaining Stock</th>
+                    <th className="py-3 px-4">Stock</th>
+                    <th className="py-3 px-4">Prep Time</th>
                     <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4 text-right">Quick Restock</th>
+                    <th className="py-3 px-4 text-center">Batch Restock</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-800/60">
@@ -1114,10 +1326,23 @@ export default function StaffDashboardPage() {
                     const isSoldOut = item.stockQuantity <= 0 || !item.isAvailable;
                     return (
                       <tr key={item.id} className="hover:bg-neutral-800/30 transition">
-                        <td className="py-3 px-4 font-bold text-white">{item.name}</td>
-                        <td className="py-3 px-4 text-neutral-400">{item.category}</td>
-                        <td className="py-3 px-4 font-mono font-bold text-amber-400">₹{item.price}</td>
-                        <td className="py-3 px-4">
+                        <td className="py-3.5 px-4">
+                          <span className="font-bold text-white block">{item.name}</span>
+                          {item.description && (
+                            <span className="text-[11px] text-neutral-500 line-clamp-1">
+                              {item.description}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 text-neutral-300 font-medium">
+                          <span className="px-2 py-0.5 rounded-md bg-neutral-800 text-neutral-300 text-[11px]">
+                            {item.category}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 font-mono font-bold text-amber-400 text-sm">
+                          ₹{item.price}
+                        </td>
+                        <td className="py-3.5 px-4">
                           <span className={`font-mono font-bold px-2.5 py-1 rounded-md text-xs ${
                             isSoldOut
                               ? 'bg-red-500/20 text-red-400'
@@ -1128,31 +1353,52 @@ export default function StaffDashboardPage() {
                             {item.stockQuantity} units
                           </span>
                         </td>
-                        <td className="py-3 px-4">
+                        <td className="py-3.5 px-4 text-neutral-400">
+                          ~{item.prepTimeMins} mins
+                        </td>
+                        <td className="py-3.5 px-4">
                           {isSoldOut ? (
-                            <span className="text-red-400 font-semibold">Sold Out</span>
+                            <span className="text-red-400 font-semibold bg-red-500/10 px-2 py-0.5 rounded">
+                              Sold Out
+                            </span>
                           ) : (
-                            <span className="text-emerald-400 font-semibold">Available</span>
+                            <span className="text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded">
+                              Active
+                            </span>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-right space-x-1.5">
+                        <td className="py-3.5 px-4 text-center space-x-1">
                           <button
                             onClick={() => handleRestock(item.id, 10)}
-                            className="px-2.5 py-1 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-semibold transition"
+                            className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-[11px] font-semibold transition"
+                            title="Add +10 stock"
                           >
                             +10
                           </button>
                           <button
                             onClick={() => handleRestock(item.id, 25)}
-                            className="px-2.5 py-1 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-semibold transition"
+                            className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-[11px] font-semibold transition"
+                            title="Add +25 stock"
                           >
                             +25
                           </button>
+                        </td>
+                        <td className="py-3.5 px-4 text-right space-x-1">
+                          {/* Modify / Edit Button */}
                           <button
-                            onClick={() => handleRestock(item.id, 50)}
-                            className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 text-xs font-bold transition border border-amber-500/30"
+                            onClick={() => openEditModal(item)}
+                            className="p-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-blue-400 transition"
+                            title="Edit / Modify Item"
                           >
-                            +50 Batch
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          {/* Delete Button */}
+                          <button
+                            onClick={() => handleDeleteMenuItem(item.id, item.name)}
+                            className="p-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-red-400 transition"
+                            title="Delete Item"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </td>
                       </tr>
@@ -1165,7 +1411,331 @@ export default function StaffDashboardPage() {
         )}
       </main>
 
-      {/* CHANGE STAFF PIN MODAL */}
+      {/* ============================================================== */}
+      {/* MODAL 1: ADD NEW MENU ITEM                                     */}
+      {/* ============================================================== */}
+      {showAddItemModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <PlusCircle className="w-5 h-5 text-emerald-400" />
+                Add New Food Item
+              </h3>
+              <button
+                onClick={() => setShowAddItemModal(false)}
+                className="p-1 rounded-lg hover:bg-neutral-800 text-neutral-400"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {addItemError && (
+              <p className="text-xs p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">
+                {addItemError}
+              </p>
+            )}
+
+            <form onSubmit={handleCreateMenuItem} className="space-y-3">
+              <div>
+                <label className="text-xs text-neutral-300 font-semibold block mb-1">
+                  Item Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Masala Dosa"
+                  value={newItemName}
+                  onChange={(e) => setNewItemName(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-neutral-300 font-semibold block mb-1">
+                    Category *
+                  </label>
+                  <select
+                    value={newItemCategory}
+                    onChange={(e: any) => setNewItemCategory(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="Snacks">Snacks</option>
+                    <option value="Quick Meals">Quick Meals</option>
+                    <option value="Beverages">Beverages</option>
+                    <option value="Combos">Combos</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs text-neutral-300 font-semibold block mb-1">
+                    Price (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    placeholder="e.g. 40"
+                    value={newItemPrice}
+                    onChange={(e) => setNewItemPrice(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-neutral-300 font-semibold block mb-1">
+                    Initial Stock (Qty) *
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    placeholder="e.g. 20"
+                    value={newItemStock}
+                    onChange={(e) => setNewItemStock(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-neutral-300 font-semibold block mb-1">
+                    Prep Time (Mins)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="e.g. 5"
+                    value={newItemPrepTime}
+                    onChange={(e) => setNewItemPrepTime(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-neutral-300 font-semibold block mb-1">
+                  Description (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Crispy rice crepe served with sambar and coconut chutney"
+                  value={newItemDesc}
+                  onChange={(e) => setNewItemDesc(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddItemModal(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-semibold text-xs transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold text-xs transition shadow-md shadow-emerald-500/20"
+                >
+                  Add Item to Menu
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL 2: EDIT / MODIFY MENU ITEM                              */}
+      {/* ============================================================== */}
+      {editingItem && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-blue-400" />
+                Modify Food Item
+              </h3>
+              <button
+                onClick={() => setEditingItem(null)}
+                className="p-1 rounded-lg hover:bg-neutral-800 text-neutral-400"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {editItemError && (
+              <p className="text-xs p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">
+                {editItemError}
+              </p>
+            )}
+
+            <form onSubmit={handleUpdateMenuItem} className="space-y-3">
+              <div>
+                <label className="text-xs text-neutral-300 font-semibold block mb-1">
+                  Item Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editItemName}
+                  onChange={(e) => setEditItemName(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-neutral-300 font-semibold block mb-1">
+                    Category
+                  </label>
+                  <select
+                    value={editItemCategory}
+                    onChange={(e: any) => setEditItemCategory(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="Snacks">Snacks</option>
+                    <option value="Quick Meals">Quick Meals</option>
+                    <option value="Beverages">Beverages</option>
+                    <option value="Combos">Combos</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs text-neutral-300 font-semibold block mb-1">
+                    Price (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={editItemPrice}
+                    onChange={(e) => setEditItemPrice(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-neutral-300 font-semibold block mb-1">
+                    Remaining Stock (Units)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={editItemStock}
+                    onChange={(e) => setEditItemStock(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-neutral-300 font-semibold block mb-1">
+                    Prep Time (Mins)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editItemPrepTime}
+                    onChange={(e) => setEditItemPrepTime(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-neutral-300 font-semibold block mb-1">
+                  Description
+                </label>
+                <input
+                  type="text"
+                  value={editItemDesc}
+                  onChange={(e) => setEditItemDesc(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="pt-1 flex items-center justify-between p-2.5 rounded-xl bg-neutral-950 border border-neutral-800">
+                <span className="text-xs text-neutral-300 font-semibold">Available for Ordering</span>
+                <input
+                  type="checkbox"
+                  checked={editItemAvailable}
+                  onChange={(e) => setEditItemAvailable(e.target.checked)}
+                  className="w-4 h-4 accent-emerald-500 cursor-pointer"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingItem(null)}
+                  className="flex-1 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-semibold text-xs transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition shadow-md shadow-blue-600/20"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL 3: DAILY TOKEN RESET CONFIRMATION                        */}
+      {/* ============================================================== */}
+      {showResetModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 mx-auto flex items-center justify-center">
+                <RotateCcw className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-bold text-white">Start Fresh Day & Reset Tokens?</h3>
+              <p className="text-xs text-neutral-400">
+                This will reset the daily token counter back to <strong className="text-amber-400 font-mono">#1</strong> and clear today's active orders from the TV Display and Kitchen Queue.
+              </p>
+            </div>
+
+            {resetSuccessMsg ? (
+              <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs text-center font-bold">
+                {resetSuccessMsg}
+              </div>
+            ) : (
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowResetModal(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-semibold text-xs transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isResettingTokens}
+                  onClick={handleResetDailyTokens}
+                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-neutral-950 font-bold text-xs transition shadow-md shadow-amber-500/20"
+                >
+                  {isResettingTokens ? 'Resetting...' : 'Yes, Reset to #1'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL 4: CHANGE STAFF PIN                                      */}
+      {/* ============================================================== */}
       {showPinChangeModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
@@ -1238,7 +1808,9 @@ export default function StaffDashboardPage() {
         </div>
       )}
 
-      {/* PIN VERIFICATION MODAL ON HANDOVER */}
+      {/* ============================================================== */}
+      {/* MODAL 5: PIN VERIFICATION MODAL ON HANDOVER                    */}
+      {/* ============================================================== */}
       {verifyingOrderId && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
