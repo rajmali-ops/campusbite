@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAndCollectOrder } from '@/lib/serverStore';
+import { verifyAndCollectOrder } from '@/lib/db';
 
 export async function POST(
   req: NextRequest,
@@ -14,7 +14,7 @@ export async function POST(
       return NextResponse.json({ success: false, error: 'Pickup PIN is required' }, { status: 400 });
     }
 
-    const result = verifyAndCollectOrder(id, pin);
+    const result = await verifyAndCollectOrder(id, pin);
     if (!result.success) {
       return NextResponse.json({ success: false, error: result.error }, { status: 400 });
     }

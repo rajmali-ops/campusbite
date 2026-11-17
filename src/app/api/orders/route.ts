@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllOrders, getActiveOrderByUserId, createOrderAtCounter } from '@/lib/serverStore';
+import { getAllOrders, getActiveOrderByUserId, createOrderAtCounter } from '@/lib/db';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -7,11 +7,11 @@ export async function GET(req: NextRequest) {
   const activeOnly = searchParams.get('active');
 
   if (userId && activeOnly === 'true') {
-    const activeOrder = getActiveOrderByUserId(userId);
+    const activeOrder = await getActiveOrderByUserId(userId);
     return NextResponse.json({ success: true, order: activeOrder || null });
   }
 
-  const orders = getAllOrders();
+  const orders = await getAllOrders();
   if (userId) {
     const userOrders = orders.filter((o) => o.userId === userId);
     return NextResponse.json({ success: true, orders: userOrders });
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = createOrderAtCounter({ userId, items });
+    const result = await createOrderAtCounter({ userId, items });
     if (!result.success) {
       return NextResponse.json({ success: false, error: result.error }, { status: 400 });
     }

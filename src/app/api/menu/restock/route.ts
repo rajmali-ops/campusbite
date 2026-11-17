@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { restockMenuItem, toggleMenuItemAvailability } from '@/lib/serverStore';
+import { restockMenuItem, toggleMenuItemAvailability } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
@@ -7,12 +7,12 @@ export async function POST(req: NextRequest) {
     const { itemId, addQty, isAvailable } = body;
 
     if (itemId && typeof addQty === 'number') {
-      const updated = restockMenuItem(itemId, addQty);
+      const updated = await restockMenuItem(itemId, addQty);
       return NextResponse.json({ success: true, item: updated });
     }
 
     if (itemId && typeof isAvailable === 'boolean') {
-      const updated = toggleMenuItemAvailability(itemId, isAvailable);
+      const updated = await toggleMenuItemAvailability(itemId, isAvailable);
       return NextResponse.json({ success: true, item: updated });
     }
 

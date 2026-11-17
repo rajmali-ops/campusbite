@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyStaffPin, updateStaffPin } from '@/lib/serverStore';
+import { verifyStaffPin, updateStaffPin } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Staff PIN is required' }, { status: 400 });
     }
 
-    const isValid = verifyStaffPin(pin);
+    const isValid = await verifyStaffPin(pin);
     if (!isValid) {
       return NextResponse.json({ success: false, error: 'Invalid Staff PIN. Access denied.' }, { status: 401 });
     }
@@ -30,7 +30,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Both current and new PIN are required' }, { status: 400 });
     }
 
-    const result = updateStaffPin(oldPin, newPin);
+    const result = await updateStaffPin(oldPin, newPin);
     if (!result.success) {
       return NextResponse.json({ success: false, error: result.error }, { status: 400 });
     }
