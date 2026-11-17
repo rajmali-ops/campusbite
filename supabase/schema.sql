@@ -1,5 +1,5 @@
 -- =========================================================================
--- CAMPUSBITE SUPABASE POSTGRESQL SCHEMA & SEED DATA
+-- CAMPUSBITE SUPABASE POSTGRESQL SCHEMA & SEED DATA (IDEMPOTENT & SAFE)
 -- Copy and paste this script into your Supabase SQL Editor and click RUN.
 -- =========================================================================
 
@@ -51,14 +51,24 @@ CREATE TABLE IF NOT EXISTS app_settings (
 );
 
 -- =========================================================================
--- ROW LEVEL SECURITY (RLS) POLICIES
+-- ROW LEVEL SECURITY (RLS) POLICIES (Safe to re-run)
 -- =========================================================================
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE menu_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
 
--- Allow public access for canteen web client interactions
+-- Drop existing policies first so re-running never throws "already exists" errors
+DROP POLICY IF EXISTS "Allow public read users" ON users;
+DROP POLICY IF EXISTS "Allow public insert users" ON users;
+DROP POLICY IF EXISTS "Allow public read menu" ON menu_items;
+DROP POLICY IF EXISTS "Allow public update menu" ON menu_items;
+DROP POLICY IF EXISTS "Allow public read orders" ON orders;
+DROP POLICY IF EXISTS "Allow public manage orders" ON orders;
+DROP POLICY IF EXISTS "Allow public read settings" ON app_settings;
+DROP POLICY IF EXISTS "Allow public update settings" ON app_settings;
+
+-- Recreate policies
 CREATE POLICY "Allow public read users" ON users FOR SELECT USING (true);
 CREATE POLICY "Allow public insert users" ON users FOR INSERT WITH CHECK (true);
 
@@ -73,7 +83,6 @@ CREATE POLICY "Allow public update settings" ON app_settings FOR ALL USING (true
 
 -- =========================================================================
 -- ENABLE SUPABASE REALTIME REPLICATION
--- (Pushes live updates to phones and TV screens automatically)
 -- =========================================================================
 DO $$
 BEGIN
@@ -113,10 +122,10 @@ VALUES
   ('m8', 'Thick Cold Coffee', 'Beverages', 35, 20, true, 3, 'Rich creamy chilled coffee with chocolate drizzle')
 ON CONFLICT (id) DO NOTHING;
 
--- Seed Demo Users
-INSERT INTO users (id, unique_code, name, phone, password)
+-- Seed Demo Users (PostgreSQL auto-generates valid UUIDs via gen_random_uuid())
+INSERT INTO users (unique_code, name, phone, password)
 VALUES 
-  ('u1111111-1111-1111-1111-111111111111', 'CB-1042', 'Rahul Sharma', '9876543210', '123456'),
-  ('u2222222-2222-2222-2222-222222222222', 'CB-1088', 'Priya Patel', '9823456789', '123456'),
-  ('u3333333-3333-3333-3333-333333333333', 'CB-1015', 'Aman Verma', '9811223344', '123456')
+  ('CB-1042', 'Rahul Sharma', '9876543210', '123456'),
+  ('CB-1088', 'Priya Patel', '9823456789', '123456'),
+  ('CB-1015', 'Aman Verma', '9811223344', '123456')
 ON CONFLICT (phone) DO NOTHING;
