@@ -1,0 +1,188 @@
+{
+  "users": [
+    {
+      "id": "u1",
+      "uniqueCode": "CB-1042",
+      "name": "Rahul Sharma",
+      "phone": "9876543210",
+      "createdAt": "2026-11-17T07:55:44.204Z"
+    },
+    {
+      "id": "u2",
+      "uniqueCode": "CB-1088",
+      "name": "Priya Patel",
+      "phone": "9823456789",
+      "createdAt": "2026-11-17T07:55:44.204Z"
+    },
+    {
+      "id": "u3",
+      "uniqueCode": "CB-1015",
+      "name": "Aman Verma",
+      "phone": "9811223344",
+      "createdAt": "2026-11-17T07:55:44.204Z"
+    },
+    {
+      "id": "user-1794902577497",
+      "uniqueCode": "CB-7003",
+      "name": "r",
+      "phone": "98745632132",
+      "password": "12345",
+      "createdAt": "2026-11-17T08:02:57.497Z"
+    }
+  ],
+  "menuItems": [
+    {
+      "id": "m1",
+      "name": "Hot Crispy Samosa",
+      "category": "Snacks",
+      "price": 15,
+      "stockQuantity": 23,
+      "isAvailable": true,
+      "prepTimeMins": 3,
+      "description": "Golden spiced potato stuffed crispy triangles"
+    },
+    {
+      "id": "m2",
+      "name": "Mumbai Vada Pav",
+      "category": "Snacks",
+      "price": 20,
+      "stockQuantity": 20,
+      "isAvailable": true,
+      "prepTimeMins": 2,
+      "description": "Spicy potato fritter in bun with garlic chutney"
+    },
+    {
+      "id": "m3",
+      "name": "Veg Cheese Grilled Sandwich",
+      "category": "Snacks",
+      "price": 55,
+      "stockQuantity": 12,
+      "isAvailable": true,
+      "prepTimeMins": 7,
+      "description": "Crisp layered sandwich with veggies and melted cheese"
+    },
+    {
+      "id": "m4",
+      "name": "Paneer Tikka Frankie",
+      "category": "Quick Meals",
+      "price": 65,
+      "stockQuantity": 8,
+      "isAvailable": true,
+      "prepTimeMins": 8,
+      "description": "Tandoori paneer roll wrapped with onions & mint mayo"
+    },
+    {
+      "id": "m5",
+      "name": "Veg Fried Rice Bowl",
+      "category": "Quick Meals",
+      "price": 80,
+      "stockQuantity": 15,
+      "isAvailable": true,
+      "prepTimeMins": 10,
+      "description": "Aromatic wok-tossed basmati rice with crunchy veggies"
+    },
+    {
+      "id": "m6",
+      "name": "Chole Bhature Platter",
+      "category": "Quick Meals",
+      "price": 85,
+      "stockQuantity": 6,
+      "isAvailable": true,
+      "prepTimeMins": 12,
+      "description": "2 fluffy bhaturas with rich spiced chickpea curry"
+    },
+    {
+      "id": "m7",
+      "name": "Adrak Masala Chai",
+      "category": "Beverages",
+      "price": 12,
+      "stockQuantity": 40,
+      "isAvailable": true,
+      "prepTimeMins": 2,
+      "description": "Fresh brewed cardamom & ginger spiced hot tea"
+    },
+    {
+      "id": "m8",
+      "name": "Thick Cold Coffee",
+      "category": "Beverages",
+      "price": 35,
+      "stockQuantity": 18,
+      "isAvailable": true,
+      "prepTimeMins": 3,
+      "description": "Rich creamy chilled coffee with chocolate drizzle"
+    }
+  ],
+  "orders": [
+    {
+      "id": "ord-1794902177830",
+      "tokenNumber": 22,
+      "userId": "u1",
+      "uniqueCode": "CB-1042",
+      "userName": "Rahul Sharma",
+      "userPhone": "9876543210",
+      "items": [
+        {
+          "id": "m1",
+          "name": "Hot Crispy Samosa",
+          "price": 15,
+          "quantity": 2
+        }
+      ],
+      "totalAmount": 30,
+      "pickupPin": "2067",
+      "status": "collected",
+      "estimatedReadyAt": "Ready for Collection!",
+      "createdAt": "2026-11-17T07:56:17.830Z"
+    },
+    {
+      "id": "ord-101",
+      "tokenNumber": 21,
+      "userId": "u1",
+      "uniqueCode": "CB-1042",
+      "userName": "Rahul Sharma",
+      "userPhone": "9876543210",
+      "items": [
+        {
+          "id": "m1",
+          "name": "Hot Crispy Samosa",
+          "price": 15,
+          "quantity": 2
+        },
+        {
+          "id": "m7",
+          "name": "Adrak Masala Chai",
+          "price": 12,
+          "quantity": 1
+        }
+      ],
+      "totalAmount": 42,
+      "pickupPin": "4821",
+      "status": "collected",
+      "estimatedReadyAt": "Ready for Collection!",
+      "createdAt": "2026-11-17T07:50:44.210Z"
+    },
+    {
+      "id": "ord-102",
+      "tokenNumber": 20,
+      "userId": "u2",
+      "uniqueCode": "CB-1088",
+      "userName": "Priya Patel",
+      "userPhone": "9823456789",
+      "items": [
+        {
+          "id": "m8",
+          "name": "Thick Cold Coffee",
+          "price": 35,
+          "quantity": 1
+        }
+      ],
+      "totalAmount": 35,
+      "pickupPin": "1392",
+      "status": "ready",
+      "estimatedReadyAt": "Ready for Collection",
+      "createdAt": "2026-11-17T07:45:44.210Z"
+    }
+  ],
+  "nextTokenNumber": 23,
+  "staffPin": "1234"
+}
